@@ -1,5 +1,6 @@
 #include "Particle.h"
 #include "opencv2\imgproc\imgproc.hpp"
+#include "opencv2\highgui\highgui.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -7,6 +8,7 @@ void Particle::InitParticle(const cv::Mat& handimg){
 	std::vector<std::vector<cv::Point> > contours;
 	std::vector<cv::Vec4i> hierarchy;
 	std::vector<cv::Point> handcontour;
+	//cv::Mat imgshow=handimg.clone();
 
 	cv::findContours( handimg, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
 
@@ -23,6 +25,10 @@ void Particle::InitParticle(const cv::Mat& handimg){
 		handcontour=(*itr);
 	}else
 		handcontour=contours[0];
+	//以下用于调试，显示轮廓。
+	//std::vector<std::vector<cv::Point> > debugcontour;
+	//debugcontour.push_back(handcontour);
+	//cv::drawContours(imgshow,debugcontour,0,cv::Scalar(128),2);
 	//cv::floodFill(handimg,cv::Mat(),handcontour[0],255);//不把可能的噪声涂掉吗？
 
 	//std::vector<int> convexhullpoints_index;
@@ -39,9 +45,14 @@ void Particle::InitParticle(const cv::Mat& handimg){
 
 	int len=handcontour.size()+1;
 	for (int i=-3;i!=4;i++){
-		templatePointSetx[i+3]=handcontour[(min_index+30*i+2*len)%len].x-handcontour[(min_index)%len].x;
-		templatePointSety[i+3]=handcontour[(min_index+30*i+2*len)%len].y-handcontour[(min_index)%len].y;
+		templatePointSetx[i+3]=handcontour[(min_index+10*i+2*len)%len].x-handcontour[(min_index)%len].x;
+		templatePointSety[i+3]=handcontour[(min_index+10*i+2*len)%len].y-handcontour[(min_index)%len].y;
+		//用于调试
+		//cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
 	}
+	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
+	//cv::imshow("debug window 1",imgshow);
+	//cv::waitKey(0);
 	
 	if(!W.empty())
 		W.pop_back(14);
@@ -101,6 +112,7 @@ void Particle::PredictParticle(){
 void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	//这里假设输入RGB图像。
 	cv::Mat gray_img;
+	cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 	cv::cvtColor(img,gray_img,CV_BGR2GRAY);
 
 	//每个状态对应七个控制点(controlPoints)，每个控制点转化为五个顶点四段曲线；
@@ -116,6 +128,9 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	//一些计算参数
 	cv::Mat bspline=(cv::Mat_<double>(4,4)<<-1,3,-3,1,3,-6,3,0,-3,0,3,0,1,4,1,0);
 	for (int i=0;i!=particleNum;i++){
+		//用于调试
+		
+		//
 		cv::Mat S=(cv::Mat_<double>(6,1)<<
 			particleStates[i][0],
 			particleStates[i][1],
@@ -151,7 +166,16 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 				deravationX[i][j+1]=dbaset.dot(tempM1);
 				deravationY[i][j+1]=dbaset.dot(tempM2);
 			}
+			
 		}
+		//用于调试
+		//cv::Mat imgshow=img.clone();
+		//for(int j=0;j!=5;j++){
+		//	imgshow.at<cv::Vec3b>(actualPoints[i][j])=cv::Vec3b(0,0,0);
+		//}
+		//cv::imshow("debug window 1",imgshow);
+		//cv::waitKey(0);
+
 		if (!isValid(particleStates[i],actualPoints[i]))
 			particleConfidence[i]=0;
 	}
@@ -168,8 +192,14 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 			for (int j=0;j!=5;j++){
 				gradient[j]=-deravationX[i][j]/deravationY[i][j];
 				for (int k=-10;k!=10;k++){
-					normalPoints[k+10].x=k;
-					normalPoints[k+10].y=(int)k*gradient[j];
+					if(gradient[j]<=1 && gradient[j]>=-1){
+						normalPoints[k+10].x=k;
+						normalPoints[k+10].y=(int)k*gradient[j];
+					}
+					else{
+						normalPoints[k+10].y=k;
+						normalPoints[k+10].x=(int)k/gradient[j];
+					}
 					normalPoints[k+10]+=actualPoints[i][j];
 				}
 				//在这里，一个状态的一个顶点的法线已经维护完毕。当然我要提醒诸位的是，可能会有某些点为负值的情况。这时候应该怎么办呢？

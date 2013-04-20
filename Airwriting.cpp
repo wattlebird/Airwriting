@@ -14,7 +14,7 @@ using namespace std;
 namespace
 {
 	Particle particles(20);
-	Mat curframe;//是否可以在此更改视频大小？
+	Mat curframe;
 	Mat bkgnd;
 	Mat preframe;
 	bool trackObject = false;
@@ -71,7 +71,7 @@ int main(int ac, char** av)
     cout << "press space to save a picture. q or esc to quit" << endl;
     namedWindow(window_name, CV_WINDOW_AUTOSIZE);
 	//调试用
-	namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
+	//namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 	//namedWindow("debug window 2", CV_WINDOW_AUTOSIZE);
 	//namedWindow("debug window 3", CV_WINDOW_AUTOSIZE);
 
@@ -97,13 +97,15 @@ int main(int ac, char** av)
 		Mat vali=framediff(curframe,preframe);
 		Mat handimg=framediff(curframe,bkgnd);
 		//imshow("debug window 1",handimg);
+		//cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
 		//waitKey(0);
-		cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
 		if(!trackObject && countNonZero(vali)<50 && countNonZero(handimg)>3500){
 			
 			trackObject=true;//这个值什么时候才能被改变为false呢？
-
+			//cout<<"close operation"<<endl;
 			morphologyEx(handimg,handimg,MORPH_CLOSE,SE);
+			//imshow("debug window 1",handimg);
+			//waitKey(0);
 			particles.InitParticle(handimg);
 			//continue;
 		}
