@@ -56,8 +56,8 @@ int main(int ac, char** av)
     if (!capture.isOpened()){
 		//if this fails, try to open as a video camera, through the use of an integer param
 		capture.open(atoi(arg.c_str()));
-		capture.set(CV_CAP_PROP_FRAME_WIDTH,320);
-		capture.set(CV_CAP_PROP_FRAME_HEIGHT,240);
+		//capture.set(CV_CAP_PROP_FRAME_WIDTH,320);
+		//capture.set(CV_CAP_PROP_FRAME_HEIGHT,240);
         
 	}
     if (!capture.isOpened())
@@ -97,9 +97,9 @@ int main(int ac, char** av)
 		Mat vali=framediff(curframe,preframe);
 		Mat handimg=framediff(curframe,bkgnd);
 		//imshow("debug window 1",handimg);
-		//cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
+		cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
 		//waitKey(0);
-		if(!trackObject && countNonZero(vali)<50 && countNonZero(handimg)>3500){
+		if(!trackObject && countNonZero(vali)<839 && countNonZero(handimg)>3500){
 			
 			trackObject=true;//这个值什么时候才能被改变为false呢？
 			//cout<<"close operation"<<endl;
@@ -129,7 +129,7 @@ int main(int ac, char** av)
 		imshow(window_name, img);
 		preframe=curframe.clone();
 
-		char key = (char) waitKey(10); 
+		char key = (char) waitKey(0); 
 		switch (key)
 		{
 			case 'q':

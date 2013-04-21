@@ -40,6 +40,7 @@ private:
 	//这个形式应该是
 	cv::Vec<double,7> templatePointSetx;
 	cv::Vec<double,7> templatePointSety;
+	cv::Vec<double,14> templateControlPoint;
 	cv::Mat W;
 
 	int particleNum;

@@ -45,14 +45,16 @@ void Particle::InitParticle(const cv::Mat& handimg){
 
 	int len=handcontour.size()+1;
 	for (int i=-3;i!=4;i++){
-		templatePointSetx[i+3]=handcontour[(min_index+10*i+2*len)%len].x-handcontour[(min_index)%len].x;
-		templatePointSety[i+3]=handcontour[(min_index+10*i+2*len)%len].y-handcontour[(min_index)%len].y;
+		templatePointSetx[i+3]=handcontour[(min_index+5*i+2*len)%len].x-handcontour[(min_index)%len].x;
+		templatePointSety[i+3]=handcontour[(min_index+5*i+2*len)%len].y-handcontour[(min_index)%len].y;
+		templateControlPoint[i+3]=templatePointSetx[i+3];
+		templateControlPoint[i+10]=templatePointSety[i+3];
 		//用于调试
 		//cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
 	}
 	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 	//cv::imshow("debug window 1",imgshow);
-	//cv::waitKey(0);
+	// cv::waitKey(0);
 	
 	if(!W.empty())
 		W.pop_back(14);
@@ -66,6 +68,8 @@ void Particle::InitParticle(const cv::Mat& handimg){
 			W.push_back(cv::Mat(1,6,CV_64F,temp));
 		}
 	}
+	//std::cout<<"W="<<W<<std::endl<<std::endl;
+	
 
 	cv::Vec<double,5> init_state(handcontour[min_index].x,
 		handcontour[min_index].y,
@@ -94,8 +98,8 @@ void Particle::PredictParticle(){
 	for (int i=0;i!=particleNum;i++)
 		if(nextround[i])
 			for (int j=0;j!=nextround[i];j++){
-				cv::Vec<double,5> randomVec(randobj.gaussian(1),
-					randobj.gaussian(1),
+				cv::Vec<double,5> randomVec(randobj.gaussian(3),
+					randobj.gaussian(3),
 					randobj.gaussian(0.03),//弧度！
 					randobj.gaussian(0.01),
 					randobj.gaussian(0.01)
@@ -112,7 +116,7 @@ void Particle::PredictParticle(){
 void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	//这里假设输入RGB图像。
 	cv::Mat gray_img;
-	cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
+	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 	cv::cvtColor(img,gray_img,CV_BGR2GRAY);
 
 	//每个状态对应七个控制点(controlPoints)，每个控制点转化为五个顶点四段曲线；
@@ -129,7 +133,8 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	cv::Mat bspline=(cv::Mat_<double>(4,4)<<-1,3,-3,1,3,-6,3,0,-3,0,3,0,1,4,1,0);
 	for (int i=0;i!=particleNum;i++){
 		//用于调试
-		
+		cv::Mat imgshow=img.clone();
+		cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 		//
 		cv::Mat S=(cv::Mat_<double>(6,1)<<
 			particleStates[i][0],
@@ -138,7 +143,22 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 			particleStates[i][4]*(std::cos(particleStates[i][2]))-1,
 			-particleStates[i][4]*(std::sin(particleStates[i][2])),
 			particleStates[i][3]*(std::sin(particleStates[i][2])));
-		cv::gemm(W,S,1,cv::Mat(),0,controlPoints[i]);
+		cv::gemm(W,S,1,templateControlPoint,1,controlPoints[i]);
+		//用于调试
+		std::cout<<"S="<<S<<std::endl<<std::endl;
+		std::vector<cv::Point> affinedPoints(7);
+		for (int j=0;j!=7;j++){
+			affinedPoints[j].x=controlPoints[i][j];
+			affinedPoints[j].y=controlPoints[i][j+7];
+			cv::circle(imgshow,affinedPoints[j],5,cv::Scalar(128,128,128),3);
+		}
+		for (int j=0;j!=6;j++){
+			cv::line(imgshow,affinedPoints[j],affinedPoints[j+1],cv::Scalar(0,0,0),2);
+		}
+		cv::imshow("debug window 1",imgshow);
+		cv::waitKey(0);
+		//
+
 		for (int j=0;j!=4;j++){
 			cv::Vec4d tempM1,tempM2,baset,dbaset;
 			cv::Mat controlPointX,controlPointY;
@@ -186,7 +206,8 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 			continue;
 		}
 		else{
-			std::vector<double> gradient(5);
+			std::vector<double> gradient(5),dis(5);
+
 			std::vector<cv::Point2i> normalPoints(20);
 			//std::vector<std::vector<cv::Point2i> > normal(5);
 			for (int j=0;j!=5;j++){
@@ -215,10 +236,11 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 					}
 				}
 				std::vector<int>::iterator itr_d=std::max_element(d.begin(),d.end());
-				gradient[j]+=((itr_d-d.begin())-9)*((itr_d-d.begin())-9);
+				dis[j]+=((itr_d-d.begin())-9)*((itr_d-d.begin())-9);
 
 			}
-			particleConfidence[i]=std::exp(-(cv::sum(gradient))[0]/(2*20));//是否是20，还有待查证。
+			std::cout<<"square sum of dif"<<cv::sum(dis)[0]<<std::endl;
+			particleConfidence[i]=std::exp(-(cv::sum(dis))[0]/2500);//是否是20，还有待查证。
 		}
 	}
 
