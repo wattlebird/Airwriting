@@ -9,7 +9,7 @@ void Particle::InitParticle(const cv::Mat& handimg){
 	std::vector<std::vector<cv::Point> > contours;
 	std::vector<cv::Vec4i> hierarchy;
 	std::vector<cv::Point> handcontour;
-	//cv::Mat imgshow=handimg.clone();
+	cv::Mat imgshow=handimg.clone();
 
 	cv::findContours( handimg, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
 
@@ -45,39 +45,39 @@ void Particle::InitParticle(const cv::Mat& handimg){
 	int min_index=itr-handcontour.begin();
 
 	int len=handcontour.size()+1;
-	for (int i=-3;i!=4;i++){
-		templatePointSetx[i+3]=handcontour[(min_index+5*i+2*len)%len].x-handcontour[(min_index)%len].x;
-		templatePointSety[i+3]=handcontour[(min_index+5*i+2*len)%len].y-handcontour[(min_index)%len].y;
-		templateControlPoint[i+3]=templatePointSetx[i+3];
-		templateControlPoint[i+10]=templatePointSety[i+3];
+	for (int i=-10;i!=10;i++){
+		templatePointSetx[i+10]=handcontour[(min_index+5*i+2*len)%len].x-handcontour[(min_index)%len].x;
+		templatePointSety[i+10]=handcontour[(min_index+5*i+2*len)%len].y-handcontour[(min_index)%len].y;
+		templateControlPoint[i+10]=templatePointSetx[i+10];
+		templateControlPoint[i+30]=templatePointSety[i+10];
 		//用于调试
 		//cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
 	}
 	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 	//cv::imshow("debug window 1",imgshow);
-	// cv::waitKey(0);
+	//cv::waitKey(0);
 	
 	if(!W.empty())
-		W.pop_back(14);
-	for (int i=0;i!=14;i++){
-		if(i<7){
-			double temp[]={1,0,templatePointSetx[i%7],0,0,templatePointSety[i%7]};
+		W.pop_back(40);
+	for (int i=0;i!=40;i++){
+		if(i<20){
+			double temp[]={1,0,templatePointSetx[i%20],0,0,templatePointSety[i%20]};
 			W.push_back(cv::Mat(1,6,CV_64F,temp));
 		}
 		else{
-			double temp[]={0,1,0,templatePointSety[i%7],templatePointSetx[i%7],0};
+			double temp[]={0,1,0,templatePointSety[i%20],templatePointSetx[i%20],0};
 			W.push_back(cv::Mat(1,6,CV_64F,temp));
 		}
 	}
 	//std::cout<<"W="<<W<<std::endl<<std::endl;
 	
 
-	cv::Vec<double,5> init_state(handcontour[min_index].x,
-		handcontour[min_index].y,
+	cv::Vec<double,9> init_state(handcontour[min_index].x,handcontour[min_index].x,handcontour[min_index].x,
+		handcontour[min_index].y,handcontour[min_index].y,handcontour[min_index].y,
 		0,
 		1,
 		1);
-	particleStates=std::vector<cv::Vec<double,5> >(particleNum,init_state);
+	particleStates=std::vector<cv::Vec<double,9> >(particleNum,init_state);
 }
 
 
@@ -99,8 +99,8 @@ void Particle::PredictParticle(){
 	for (int i=0;i!=particleNum;i++)
 		if(nextround[i])
 			for (int j=0;j!=nextround[i];j++){
-				cv::Vec<double,5> randomVec(randobj.gaussian(3),
-					randobj.gaussian(3),
+				cv::Vec<double,9> randomVec(randobj.gaussian(3),0,0,
+					randobj.gaussian(3),0,0,
 					randobj.gaussian(0.03),//弧度！
 					randobj.gaussian(0.01),
 					randobj.gaussian(0.01)
@@ -116,49 +116,34 @@ void Particle::PredictParticle(){
 //……实际上输入什么图像应该由更为上层的结构确定
 void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	//这里假设输入RGB图像。
-	std::vector<cv::Vec<double, 14> > controlPoints(particleNum);
+	std::vector<cv::Vec<double, 40> > controlPoints(particleNum);
 	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 
 	for (int i=0;i!=particleNum;i++){
 		cv::Mat S=(cv::Mat_<double>(6,1)<<
 			particleStates[i][0],
-			particleStates[i][1],
-			particleStates[i][3]*(std::cos(particleStates[i][2]))-1,
-			particleStates[i][4]*(std::cos(particleStates[i][2]))-1,
-			-particleStates[i][4]*(std::sin(particleStates[i][2])),
-			particleStates[i][3]*(std::sin(particleStates[i][2])));
+			particleStates[i][3],
+			particleStates[i][7]*(std::cos(particleStates[i][6]))-1,
+			particleStates[i][8]*(std::cos(particleStates[i][6]))-1,
+			-particleStates[i][8]*(std::sin(particleStates[i][6])),
+			particleStates[i][7]*(std::sin(particleStates[i][6])));
 		cv::gemm(W,S,1,templateControlPoint,1,controlPoints[i]);
-		std::vector<cv::Point> affinedPoints(7);
-		for (int j=0;j!=7;j++){
+		std::vector<cv::Point> affinedPoints(20);
+		for (int j=0;j!=20;j++){
 			affinedPoints[j].x=controlPoints[i][j];
-			affinedPoints[j].y=controlPoints[i][j+7];
+			affinedPoints[j].y=controlPoints[i][j+20];
 		}
 		particleConfidence[i]=ContConf(affinedPoints,img);
 	}
 
-	trackObject=false;
-	for (std::vector<double>::const_iterator itr=particleConfidence.begin();
-		itr!=particleConfidence.end();itr++){
-			if((*itr)>0.0001){
-				trackObject=true;
-				break;
-			}
-	}
+	//trackObject=false;
+	//if (cv::mean(particleConfidence)[0]>0.005)
+		//trackObject=true;
 
 	cv::normalize(particleConfidence,particleConfidence,1.0,0.0,cv::NORM_L1);
 			
 }
 
-bool isValid(const cv::Vec<double,5>& state, const std::vector<cv::Point2i>& actualPoints){
-	if (state[0]>=0 && state[0]<320 && state[1]>=0 && state[1]<240 && state[3]>0 && state[4]>0){
-		std::vector<cv::Point2i>::const_iterator itr=actualPoints.begin();
-		while(itr!=actualPoints.end() && (*itr).x>=0 && (*itr).x<320 && (*itr).y>=0 && (*itr).y<240)
-			itr++;
-		if (itr==actualPoints.end())
-			return true;
-	}
-	return false;
-}
 
 		
 
@@ -166,7 +151,7 @@ cv::Point Particle::MeasuredFingertip() const {
 	double x=0,y=0;
 	for(int i=0;i!=particleNum;i++){
 		x+=particleConfidence[i]*particleStates[i][0];
-		y+=particleConfidence[i]*particleStates[i][1];
+		y+=particleConfidence[i]*particleStates[i][3];
 	}
 	return cv::Point2i((int)x,(int)y);
 }

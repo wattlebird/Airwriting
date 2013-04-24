@@ -13,7 +13,16 @@ using namespace std;
 //hide the local functions in an anon namespace
 namespace
 {
-	Particle particles(20);
+	Particle particles(20,(Mat_<double>(9,9)<<
+		1.8,-0.6,-0.2,0,0,0,0,0,0,
+		1,0,0,0,0,0,0,0,0,
+		0,1,0,0,0,0,0,0,0,
+		0,0,0,1.8,-0.6,-0.2,0,0,0,
+		0,0,0,1,0,0,0,0,0,
+		0,0,0,0,1,0,0,0,0,
+		0,0,0,0,0,0,1,0,0,
+		0,0,0,0,0,0,0,1,0,
+		0,0,0,0,0,0,0,0,1));
 	Mat curframe;
 	Mat bkgnd;
 	Mat preframe;

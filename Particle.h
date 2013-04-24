@@ -8,9 +8,9 @@
 class Particle{
 public:
 	Particle():particleNum(0){};
-	explicit Particle(int num, cv::Mat dym=cv::Mat::eye(cv::Size(5,5),CV_64FC1)){
+	explicit Particle(int num, cv::Mat dym=cv::Mat::eye(cv::Size(9,9),CV_64FC1)){
 		particleNum=num;
-		particleStates=std::vector<cv::Vec<double,5> >(num);
+		particleStates=std::vector<cv::Vec<double,9> >(num);
 		particleConfidence=std::vector<double>(num,1./num);
 		//particleCumulative=std::vector<double>(num);
 		//for (int i=1;i!=num;i++)
@@ -38,13 +38,13 @@ public:
 
 private:
 	//这个形式应该是
-	cv::Vec<double,7> templatePointSetx;
-	cv::Vec<double,7> templatePointSety;
-	cv::Vec<double,14> templateControlPoint;
+	cv::Vec<double,20> templatePointSetx;
+	cv::Vec<double,20> templatePointSety;
+	cv::Vec<double,40> templateControlPoint;
 	cv::Mat W;
 
 	int particleNum;
-	std::vector<cv::Vec<double,5> > particleStates;
+	std::vector<cv::Vec<double,9> > particleStates;
 	std::vector<double> particleConfidence;
 	//std::vector<double> particleCumulative;
 	cv::Mat dynModel;
@@ -55,7 +55,5 @@ bool contours_compare(const std::vector<cv::Point>,
 	const std::vector<cv::Point>);
 bool fingertip_compare(const cv::Point, const cv::Point);
 
-//用以判断状态是否有效，以及与一个状态值对应的顶点是否有效。如果无效，则置信度归零。
-bool isValid(const cv::Vec<double,5>&, const std::vector<cv::Point2i>&);
 
 #endif

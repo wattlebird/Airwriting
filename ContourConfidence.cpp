@@ -1,5 +1,7 @@
-
 #include "ContourConfidence.h"
+#include <cmath>
+#include <stdexcept>
+#include <opencv2\imgproc\imgproc.hpp>
 #include <opencv2\highgui\highgui.hpp>
 
 #define ROUND(i,len) ((i)<0 ? ((i)+len) : (i))
@@ -62,7 +64,7 @@ double ContConf(const std::vector<cv::Point>& contour, const std::vector<int>& c
 	cv::Mat gray_img;
 	cv::cvtColor(img,gray_img,CV_BGR2GRAY);
 	cv::blur(gray_img,gray_img,cv::Size(3,3));
-	cv::Canny(gray_img,gray_img,15,45);//这个“阈值”到底取多少为合适，还需要考察。
+	cv::Canny(gray_img,gray_img,50,150);
 	double dis=0;
 	for (int i=0;i!=len;i++){
 		try{
@@ -74,7 +76,7 @@ double ContConf(const std::vector<cv::Point>& contour, const std::vector<int>& c
 			}
 		}
 	}
-	dis/=(2*len*20);
+	dis/=(2*len*0.4255);
 	return std::exp(-dis);
 }
 
@@ -89,24 +91,17 @@ double confcal(const cv::Mat& img, const cv::Point& pt, const cv::Point2d& n, co
 	if (pt1.x<0 || pt1.x>=width || pt1.y<0 || pt1.y>=height || pt2.x<0 || pt2.x>=width || pt2.y<0 || pt2.y>=height)
 		throw std::invalid_argument("points are out of pic's range");
 
-	cv::LineIterator normal_itr(img,pt1,pt2);
 	cv::LineIterator normal_itr1(img,pt,pt1);
 	cv::LineIterator normal_itr2(img,pt,pt2);
-	//如果canny出来的点都是255，那么在这里还要改变算法。
-	uchar maxpixel=**normal_itr++;
-	for (int i=1;i!=normal_itr.count;i++,normal_itr++){
-		if (maxpixel<**normal_itr)
-			maxpixel=**normal_itr;
-	}
-	for (int i=0;i!=normal_itr1.count;i++,normal_itr1++)
-		if (maxpixel==(**normal_itr1))
+	int i,j;
+	for (i=0;i!=normal_itr1.count;i++,normal_itr1++)
+		if ((**normal_itr1)==255)
 			break;
 
-	for (int i=0;i!=normal_itr2.count;i++,normal_itr2++)
-		if (maxpixel==(**normal_itr2))
+	for (j=0;j!=normal_itr2.count;j++,normal_itr2++)
+		if ((**normal_itr2)==255)
 			break;
-	if (maxpixel==0)
-		return 1000;
+	
 
 	double dis1=cv::norm(normal_itr1.pos()-pt);
 	double dis2=cv::norm(normal_itr2.pos()-pt);
