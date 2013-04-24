@@ -3,6 +3,7 @@
 #include "opencv2\highgui\highgui.hpp"
 #include <algorithm>
 #include <cmath>
+#include "ContourConfidence.h"
 
 void Particle::InitParticle(const cv::Mat& handimg){
 	std::vector<std::vector<cv::Point> > contours;
@@ -115,27 +116,10 @@ void Particle::PredictParticle(){
 //……实际上输入什么图像应该由更为上层的结构确定
 void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	//这里假设输入RGB图像。
-	cv::Mat gray_img;
-	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
-	cv::cvtColor(img,gray_img,CV_BGR2GRAY);
-
-	//每个状态对应七个控制点(controlPoints)，每个控制点转化为五个顶点四段曲线；
-	//一共有particleNum个状态，每个状态要维护五个顶点的位置(actualPoints)，以及x、y方向上的导数(deravationX)；
-	//而每个顶点要维护沿着其法线方向上的20个像素点，以计算法线上的梯度。
 	std::vector<cv::Vec<double, 14> > controlPoints(particleNum);
-	std::vector<std::vector<cv::Point2i> > actualPoints;
-	std::vector<cv::Vec<double, 5> > deravationX(particleNum);
-	std::vector<cv::Vec<double, 5> > deravationY(particleNum);
+	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 
-	std::vector<cv::Point2i> temprory(5);
-	actualPoints=std::vector<std::vector<cv::Point2i> >(particleNum,temprory);
-	//一些计算参数
-	cv::Mat bspline=(cv::Mat_<double>(4,4)<<-1,3,-3,1,3,-6,3,0,-3,0,3,0,1,4,1,0);
 	for (int i=0;i!=particleNum;i++){
-		//用于调试
-		cv::Mat imgshow=img.clone();
-		cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
-		//
 		cv::Mat S=(cv::Mat_<double>(6,1)<<
 			particleStates[i][0],
 			particleStates[i][1],
@@ -144,110 +128,18 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 			-particleStates[i][4]*(std::sin(particleStates[i][2])),
 			particleStates[i][3]*(std::sin(particleStates[i][2])));
 		cv::gemm(W,S,1,templateControlPoint,1,controlPoints[i]);
-		//用于调试
-		std::cout<<"S="<<S<<std::endl<<std::endl;
 		std::vector<cv::Point> affinedPoints(7);
 		for (int j=0;j!=7;j++){
 			affinedPoints[j].x=controlPoints[i][j];
 			affinedPoints[j].y=controlPoints[i][j+7];
-			cv::circle(imgshow,affinedPoints[j],5,cv::Scalar(128,128,128),3);
 		}
-		for (int j=0;j!=6;j++){
-			cv::line(imgshow,affinedPoints[j],affinedPoints[j+1],cv::Scalar(0,0,0),2);
-		}
-		cv::imshow("debug window 1",imgshow);
-		cv::waitKey(0);
-		//
-
-		for (int j=0;j!=4;j++){
-			cv::Vec4d tempM1,tempM2,baset,dbaset;
-			cv::Mat controlPointX,controlPointY;
-			controlPointX=(cv::Mat_<double>(4,1)<<controlPoints[i][j],
-				controlPoints[i][j+1],
-				controlPoints[i][j+2],
-				controlPoints[i][j+3]);
-			controlPointY=(cv::Mat_<double>(4,1)<<controlPoints[i][j+7],
-				controlPoints[i][j+8],
-				controlPoints[i][j+9],
-				controlPoints[i][j+10]);
-			cv::gemm(bspline,controlPointX,1.0/6.0,cv::Mat(),0,tempM1);
-			cv::gemm(bspline,controlPointY,1.0/6.0,cv::Mat(),0,tempM2);
-			baset=cv::Vec4d(0,0,0,1);
-			dbaset=cv::Vec4d(0,0,1,0);
-			actualPoints[i][j].x=(int)baset.dot(tempM1);
-			actualPoints[i][j].y=(int)baset.dot(tempM2);
-			deravationX[i][j]=dbaset.dot(tempM1);
-			deravationY[i][j]=dbaset.dot(tempM2);
-			if(j==3){
-				baset=cv::Vec4d(1,1,1,1);
-				dbaset=cv::Vec4d(3,2,1,0);
-				actualPoints[i][j+1].x=(int)baset.dot(tempM1);
-				actualPoints[i][j+1].y=(int)baset.dot(tempM2);
-				deravationX[i][j+1]=dbaset.dot(tempM1);
-				deravationY[i][j+1]=dbaset.dot(tempM2);
-			}
-			
-		}
-		//用于调试
-		//cv::Mat imgshow=img.clone();
-		//for(int j=0;j!=5;j++){
-		//	imgshow.at<cv::Vec3b>(actualPoints[i][j])=cv::Vec3b(0,0,0);
-		//}
-		//cv::imshow("debug window 1",imgshow);
-		//cv::waitKey(0);
-
-		if (!isValid(particleStates[i],actualPoints[i]))
-			particleConfidence[i]=0;
-	}
-		
-	//这一段代码的目的，就是要算出每个状态的顶点的置信度度量。
-	for (int i=0;i!=particleNum;i++){
-		if (particleConfidence[i]==0){
-			continue;
-		}
-		else{
-			std::vector<double> gradient(5),dis(5);
-
-			std::vector<cv::Point2i> normalPoints(20);
-			//std::vector<std::vector<cv::Point2i> > normal(5);
-			for (int j=0;j!=5;j++){
-				gradient[j]=-deravationX[i][j]/deravationY[i][j];
-				for (int k=-10;k!=10;k++){
-					if(gradient[j]<=1 && gradient[j]>=-1){
-						normalPoints[k+10].x=k;
-						normalPoints[k+10].y=(int)k*gradient[j];
-					}
-					else{
-						normalPoints[k+10].y=k;
-						normalPoints[k+10].x=(int)k/gradient[j];
-					}
-					normalPoints[k+10]+=actualPoints[i][j];
-				}
-				//在这里，一个状态的一个顶点的法线已经维护完毕。当然我要提醒诸位的是，可能会有某些点为负值的情况。这时候应该怎么办呢？
-				//又名：坑
-				std::vector<int> d(19);
-				for (int k=0;k!=19;k++){
-					try{
-						d[k]=(int)gray_img.at<uchar>(normalPoints[k])-(int)gray_img.at<uchar>(normalPoints[k+1]);
-						if (d[k]<0) d[k]=-d[k];
-					}catch(cv::Exception me){
-						if (me.err=="dims <= 2 && data && (unsigned)pt.y < (unsigned)size.p[0] && (unsigned)(pt.x*DataType<_Tp>::channels) < (unsigned)(size.p[1]*channels()) && ((((sizeof(size_t)<<28)|0x8442211) >> ((DataType<_Tp>::depth) & ((1 << 3) - 1))*4) & 15) == elemSize1()")
-							d[k]=255;
-					}
-				}
-				std::vector<int>::iterator itr_d=std::max_element(d.begin(),d.end());
-				dis[j]+=((itr_d-d.begin())-9)*((itr_d-d.begin())-9);
-
-			}
-			std::cout<<"square sum of dif"<<cv::sum(dis)[0]<<std::endl;
-			particleConfidence[i]=std::exp(-(cv::sum(dis))[0]/2500);//是否是20，还有待查证。
-		}
+		particleConfidence[i]=ContConf(affinedPoints,img);
 	}
 
 	trackObject=false;
 	for (std::vector<double>::const_iterator itr=particleConfidence.begin();
 		itr!=particleConfidence.end();itr++){
-			if((*itr)>0.01){
+			if((*itr)>0.0001){
 				trackObject=true;
 				break;
 			}

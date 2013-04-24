@@ -99,7 +99,7 @@ int main(int ac, char** av)
 		//imshow("debug window 1",handimg);
 		cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
 		//waitKey(0);
-		if(!trackObject && countNonZero(vali)<839 && countNonZero(handimg)>3500){
+		if(!trackObject && countNonZero(vali)<800 && countNonZero(handimg)>16000){
 			
 			trackObject=true;//这个值什么时候才能被改变为false呢？
 			//cout<<"close operation"<<endl;
