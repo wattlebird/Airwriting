@@ -48,7 +48,7 @@ double ContConf(const std::vector<cv::Point>& corse_contour, const cv::Mat& img)
 			}
 		}
 	}
-	dis/=(2*len*0.4255);
+	dis/=(2*len*1.2);
 	return std::exp(-dis);
 }
 

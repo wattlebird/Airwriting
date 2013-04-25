@@ -46,8 +46,8 @@ void Particle::InitParticle(const cv::Mat& handimg){
 
 	int len=handcontour.size()+1;
 	for (int i=-10;i!=10;i++){
-		templatePointSetx[i+10]=handcontour[(min_index+5*i+2*len)%len].x-handcontour[(min_index)%len].x;
-		templatePointSety[i+10]=handcontour[(min_index+5*i+2*len)%len].y-handcontour[(min_index)%len].y;
+		templatePointSetx[i+10]=handcontour[(min_index+10*i+2*len)%len].x-handcontour[(min_index)%len].x;
+		templatePointSety[i+10]=handcontour[(min_index+10*i+2*len)%len].y-handcontour[(min_index)%len].y;
 		templateControlPoint[i+10]=templatePointSetx[i+10];
 		templateControlPoint[i+30]=templatePointSety[i+10];
 		//用于调试
@@ -94,8 +94,15 @@ bool fingertip_compare(const cv::Point pt1,
 void Particle::PredictParticle(){
 	std::vector<int> nextround(particleNum);
 	for (int i=0;i!=particleNum;i++)
-		nextround[i]=int(particleNum*particleConfidence[i]);
+		nextround[i]=int(particleNum*particleConfidence[i]+0.5);
+	int totalsum=cv::sum(nextround)[0];
+	if (particleNum-totalsum){
+		std::vector<int>::iterator next_itr=std::max_element(nextround.begin(),nextround.end());
+		(*next_itr)+=(particleNum-totalsum);//可能出现负值，坑
+	}
 
+	std::vector<cv::Vec<double,9> > temp(particleNum);
+	int k=0;
 	for (int i=0;i!=particleNum;i++)
 		if(nextround[i])
 			for (int j=0;j!=nextround[i];j++){
@@ -106,9 +113,11 @@ void Particle::PredictParticle(){
 					randobj.gaussian(0.01)
 					);
 			
-				cv::gemm(dynModel,particleStates[i],1.0,randomVec,1.0,particleStates[i]);
+				cv::gemm(dynModel,particleStates[i],1.0,randomVec,1.0,temp[k]);
+				k++;
 				
 			}
+	particleStates=temp;
 
 }
 
@@ -133,19 +142,48 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 			affinedPoints[j].x=controlPoints[i][j];
 			affinedPoints[j].y=controlPoints[i][j+20];
 		}
-		particleConfidence[i]=ContConf(affinedPoints,img);
+		if (isValid(particleStates[i],affinedPoints)){
+			particleConfidence[i]=ContConf(affinedPoints,img);
+		}else{
+			particleConfidence[i]=0;
+		}
+		std::cout<<particleConfidence[i]<<std::endl;
+		//用于调试
+		//cv::Mat imgshow=img.clone();
+		//for(int j=0;j!=20;j++){
+		// cv::circle(imgshow,affinedPoints[j],1,cv::Scalar(0,0,0));
+		//}
+		//cv::imshow("debug window 1",imgshow);
+		//cv::waitKey(0);
 	}
 
-	//trackObject=false;
-	//if (cv::mean(particleConfidence)[0]>0.005)
-		//trackObject=true;
+	trackObject=false;
+	int flag=0;
+	for(int i=0;i!=particleNum;i++){
+		if(particleConfidence[i]<0.2){
+			particleConfidence[i]=0;
+			flag++;
+		}
+	}
+	if (flag!=particleNum)
+		trackObject=true;
 
 	cv::normalize(particleConfidence,particleConfidence,1.0,0.0,cv::NORM_L1);
 			
 }
 
 
-		
+	
+bool isValid(const cv::Vec<double,9>& state, const std::vector<cv::Point>& actualPoints){
+	if (state[0]>=0 && state[0]<640 && state[1]>=0 && state[1]<480 && state[3]>0 && state[4]>0){
+		std::vector<cv::Point>::const_iterator itr=actualPoints.begin();
+		while(itr!=actualPoints.end() && (*itr).x>=0 && (*itr).x<640 && (*itr).y>=0 && (*itr).y<480)
+			itr++;
+				if (itr==actualPoints.end())
+					return true;
+	}
+	return false;
+}
 
 cv::Point Particle::MeasuredFingertip() const {
 	double x=0,y=0;

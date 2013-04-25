@@ -120,10 +120,11 @@ int main(int ac, char** av)
 		}
 
 		if(trackObject){
+
 			particles.PredictParticle();
 
 			particles.MeasureParticle(curframe, trackObject);
-
+			
 			//表现粒子，使用方框或什么东西。。。(在img上画图！
 			//当然作出轨迹更好啦。
 			//表现均衡后的粒子，请用此式

@@ -54,6 +54,6 @@ private:
 bool contours_compare(const std::vector<cv::Point>,
 	const std::vector<cv::Point>);
 bool fingertip_compare(const cv::Point, const cv::Point);
-
+bool isValid(const cv::Vec<double,9>&, const std::vector<cv::Point>&);
 
 #endif
