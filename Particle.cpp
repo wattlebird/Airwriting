@@ -4,18 +4,21 @@
 #include <algorithm>
 #include <cmath>
 #include "ContourConfidence.h"
+#include "Fintipos.h"
+
+//#define DEBUG_INIT
 
 void Particle::InitParticle(const cv::Mat& handimg){
 	std::vector<std::vector<cv::Point> > contours;
 	std::vector<cv::Vec4i> hierarchy;
 	std::vector<cv::Point> handcontour;
+#ifdef DEBUG_INIT
 	cv::Mat imgshow=handimg.clone();
+#endif
 
 	cv::findContours( handimg, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
 
 	if (hierarchy[0][0]>=0 || hierarchy[0][1]>=0){
-		//如果发现有不属于手的轮廓的噪音怎么办？
-		//当然在前期要以大概率去除这部分噪音，否则留在这一步会很耗效率！！！
 		std::vector<std::vector<cv::Point> > temp;
 		int contour_index=0;
 		do{
@@ -26,46 +29,40 @@ void Particle::InitParticle(const cv::Mat& handimg){
 		handcontour=(*itr);
 	}else
 		handcontour=contours[0];
-	//以下用于调试，显示轮廓。
-	//std::vector<std::vector<cv::Point> > debugcontour;
-	//debugcontour.push_back(handcontour);
-	//cv::drawContours(imgshow,debugcontour,0,cv::Scalar(128),2);
-	//cv::floodFill(handimg,cv::Mat(),handcontour[0],255);//不把可能的噪声涂掉吗？
+#ifdef DEBUG_INIT
+	std::vector<std::vector<cv::Point> > debugcontour;
+	debugcontour.push_back(handcontour);
+	cv::drawContours(imgshow,debugcontour,0,cv::Scalar(128),2);
+#endif
 
-	//std::vector<int> convexhullpoints_index;
-	//cv::convexHull(handcontour,convexhullpoints_index);
-	//int min_index=convexhullpoints_index[0];
-	//int min_y=handcontour[min_index].y;
-	//for (int i=1;i!=convexhullpoints_index.size();i++){
-	//	min_y=std::min(min_y,handcontour[convexhullpoints_index[i]].y);
-	//	if (min_y==handcontour[convexhullpoints_index[i]].y)
-	//		min_index=i;
-	//}
-	std::vector<cv::Point>::iterator itr=std::min_element(handcontour.begin(),handcontour.end(),fingertip_compare);
-	int min_index=itr-handcontour.begin();
+
+	int min_index=FingertipPos(handcontour);
 
 	int len=handcontour.size()+1;
-	for (int i=-10;i!=10;i++){
-		templatePointSetx[i+10]=handcontour[(min_index+10*i+2*len)%len].x-handcontour[(min_index)%len].x;
-		templatePointSety[i+10]=handcontour[(min_index+10*i+2*len)%len].y-handcontour[(min_index)%len].y;
-		templateControlPoint[i+10]=templatePointSetx[i+10];
-		templateControlPoint[i+30]=templatePointSety[i+10];
-		//用于调试
-		//cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
+	for (int i=-CONTOUR_POINTS/2;i!=CONTOUR_POINTS-CONTOUR_POINTS/2;i++){
+		templatePointSetx[i+CONTOUR_POINTS/2]=handcontour[(min_index+4*i+2*len)%len].x-handcontour[(min_index)%len].x;
+		templatePointSety[i+CONTOUR_POINTS/2]=handcontour[(min_index+4*i+2*len)%len].y-handcontour[(min_index)%len].y;
+		templateControlPoint[i+CONTOUR_POINTS/2]=templatePointSetx[i+CONTOUR_POINTS/2];
+		templateControlPoint[i+CONTOUR_POINTS/2+CONTOUR_POINTS]=templatePointSety[i+CONTOUR_POINTS/2];
+#ifdef DEBUG_INIT
+		cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
+#endif
 	}
-	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
-	//cv::imshow("debug window 1",imgshow);
-	//cv::waitKey(0);
+#ifdef DEBUG_INIT
+	cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
+	cv::imshow("debug window 1",imgshow);
+	cv::waitKey(0);
+#endif
 	
 	if(!W.empty())
-		W.pop_back(40);
-	for (int i=0;i!=40;i++){
-		if(i<20){
-			double temp[]={1,0,templatePointSetx[i%20],0,0,templatePointSety[i%20]};
+		W.pop_back(2*CONTOUR_POINTS);
+	for (int i=0;i!=(2*CONTOUR_POINTS);i++){
+		if(i<CONTOUR_POINTS){
+			double temp[]={1,0,templatePointSetx[i%CONTOUR_POINTS],0,0,templatePointSety[i%CONTOUR_POINTS]};
 			W.push_back(cv::Mat(1,6,CV_64F,temp));
 		}
 		else{
-			double temp[]={0,1,0,templatePointSety[i%20],templatePointSetx[i%20],0};
+			double temp[]={0,1,0,templatePointSety[i%CONTOUR_POINTS],templatePointSetx[i%CONTOUR_POINTS],0};
 			W.push_back(cv::Mat(1,6,CV_64F,temp));
 		}
 	}
@@ -75,8 +72,7 @@ void Particle::InitParticle(const cv::Mat& handimg){
 	cv::Vec<double,9> init_state(handcontour[min_index].x,handcontour[min_index].x,handcontour[min_index].x,
 		handcontour[min_index].y,handcontour[min_index].y,handcontour[min_index].y,
 		0,
-		1,
-		1);
+		1,1);
 	particleStates=std::vector<cv::Vec<double,9> >(particleNum,init_state);
 }
 
@@ -86,29 +82,28 @@ bool contours_compare(const std::vector<cv::Point> obj1,
 		return obj1.size()<obj2.size();
 }
 
-bool fingertip_compare(const cv::Point pt1,
-	const cv::Point pt2){
-		return pt1.y<pt2.y;
-}
+
 
 void Particle::PredictParticle(){
 	std::vector<int> nextround(particleNum);
 	for (int i=0;i!=particleNum;i++)
-		nextround[i]=int(particleNum*particleConfidence[i]+0.5);
+		nextround[i]=int(particleNum*particleConfidence[i]);
 	int totalsum=cv::sum(nextround)[0];
 	if (particleNum-totalsum){
 		std::vector<int>::iterator next_itr=std::max_element(nextround.begin(),nextround.end());
 		(*next_itr)+=(particleNum-totalsum);//可能出现负值，坑
 	}
 
+
+
 	std::vector<cv::Vec<double,9> > temp(particleNum);
 	int k=0;
 	for (int i=0;i!=particleNum;i++)
 		if(nextround[i])
 			for (int j=0;j!=nextround[i];j++){
-				cv::Vec<double,9> randomVec(randobj.gaussian(3),0,0,
-					randobj.gaussian(3),0,0,
-					randobj.gaussian(0.03),//弧度！
+				cv::Vec<double,9> randomVec(randobj.gaussian(6),0,0,
+					randobj.gaussian(6),0,0,
+					randobj.gaussian(0.1),//弧度！
 					randobj.gaussian(0.01),
 					randobj.gaussian(0.01)
 					);
@@ -125,7 +120,7 @@ void Particle::PredictParticle(){
 //……实际上输入什么图像应该由更为上层的结构确定
 void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	//这里假设输入RGB图像。
-	std::vector<cv::Vec<double, 40> > controlPoints(particleNum);
+	std::vector<cv::Vec<double, 2*CONTOUR_POINTS> > controlPoints(particleNum);
 	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 
 	for (int i=0;i!=particleNum;i++){
@@ -137,10 +132,10 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 			-particleStates[i][8]*(std::sin(particleStates[i][6])),
 			particleStates[i][7]*(std::sin(particleStates[i][6])));
 		cv::gemm(W,S,1,templateControlPoint,1,controlPoints[i]);
-		std::vector<cv::Point> affinedPoints(20);
-		for (int j=0;j!=20;j++){
+		std::vector<cv::Point> affinedPoints(CONTOUR_POINTS);
+		for (int j=0;j!=CONTOUR_POINTS;j++){
 			affinedPoints[j].x=controlPoints[i][j];
-			affinedPoints[j].y=controlPoints[i][j+20];
+			affinedPoints[j].y=controlPoints[i][j+CONTOUR_POINTS];
 		}
 		if (isValid(particleStates[i],affinedPoints)){
 			particleConfidence[i]=ContConf(affinedPoints,img);
@@ -150,8 +145,8 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 		std::cout<<particleConfidence[i]<<std::endl;
 		//用于调试
 		//cv::Mat imgshow=img.clone();
-		//for(int j=0;j!=20;j++){
-		// cv::circle(imgshow,affinedPoints[j],1,cv::Scalar(0,0,0));
+		//for(int j=0;j!=CONTOUR_POINTS;j++){
+		//	cv::circle(imgshow,affinedPoints[j],1,cv::Scalar(0,0,0));
 		//}
 		//cv::imshow("debug window 1",imgshow);
 		//cv::waitKey(0);
@@ -160,13 +155,15 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	trackObject=false;
 	int flag=0;
 	for(int i=0;i!=particleNum;i++){
-		if(particleConfidence[i]<0.2){
+		if(particleConfidence[i]<0.3){
 			particleConfidence[i]=0;
 			flag++;
 		}
 	}
 	if (flag!=particleNum)
 		trackObject=true;
+	else 
+		std::cout<<"failure because of confidence"<<std::endl;
 
 	cv::normalize(particleConfidence,particleConfidence,1.0,0.0,cv::NORM_L1);
 			

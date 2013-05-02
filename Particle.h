@@ -1,6 +1,8 @@
 #ifndef GUARD_PARTICLE_H
 #define GUARD_PARTICLE_H
 
+#define CONTOUR_POINTS 10
+
 #include <iostream>
 #include <vector>
 #include "opencv2\core\core.hpp"
@@ -38,9 +40,9 @@ public:
 
 private:
 	//这个形式应该是
-	cv::Vec<double,20> templatePointSetx;
-	cv::Vec<double,20> templatePointSety;
-	cv::Vec<double,40> templateControlPoint;
+	cv::Vec<double,CONTOUR_POINTS> templatePointSetx;
+	cv::Vec<double,CONTOUR_POINTS> templatePointSety;
+	cv::Vec<double,2*CONTOUR_POINTS> templateControlPoint;
 	cv::Mat W;
 
 	int particleNum;
@@ -53,7 +55,7 @@ private:
 
 bool contours_compare(const std::vector<cv::Point>,
 	const std::vector<cv::Point>);
-bool fingertip_compare(const cv::Point, const cv::Point);
+
 bool isValid(const cv::Vec<double,9>&, const std::vector<cv::Point>&);
 
 #endif

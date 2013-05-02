@@ -6,6 +6,6 @@
 
 
 double ContConf(const std::vector<cv::Point>&, const cv::Mat&);
-double ContConf(const std::vector<cv::Point>& , const std::vector<int>&, const cv::Mat&);
+
 
 #endif

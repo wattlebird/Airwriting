@@ -5,7 +5,8 @@
 #include <iostream>
 #include <vector>
 #include <stdio.h>
-//#include <ctype.h>
+
+//#define DEBUG_GLOBAL
 
 using namespace cv;
 using namespace std;
@@ -13,11 +14,11 @@ using namespace std;
 //hide the local functions in an anon namespace
 namespace
 {
-	Particle particles(20,(Mat_<double>(9,9)<<
-		1.8,-0.6,-0.2,0,0,0,0,0,0,
+	Particle particles(50,(Mat_<double>(9,9)<<
+		1.4,-0.3,-0.1,0,0,0,0,0,0,
 		1,0,0,0,0,0,0,0,0,
 		0,1,0,0,0,0,0,0,0,
-		0,0,0,1.8,-0.6,-0.2,0,0,0,
+		0,0,0,1.4,-0.3,-0.1,0,0,0,
 		0,0,0,1,0,0,0,0,0,
 		0,0,0,0,1,0,0,0,0,
 		0,0,0,0,0,0,1,0,0,
@@ -106,9 +107,9 @@ int main(int ac, char** av)
 		Mat vali=framediff(curframe,preframe);
 		Mat handimg=framediff(curframe,bkgnd);
 		//imshow("debug window 1",handimg);
-		cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
+		//cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
 		//waitKey(0);
-		if(!trackObject && countNonZero(vali)<800 && countNonZero(handimg)>16000){
+		if(!trackObject && countNonZero(vali)<1500 && countNonZero(handimg)>16000){
 			
 			trackObject=true;//这个值什么时候才能被改变为false呢？
 			//cout<<"close operation"<<endl;
@@ -139,7 +140,11 @@ int main(int ac, char** av)
 		imshow(window_name, img);
 		preframe=curframe.clone();
 
+#ifdef DEBUG_GLOBAL
 		char key = (char) waitKey(0); 
+#else
+		char key= (char) waitKey(30);
+#endif
 		switch (key)
 		{
 			case 'q':
