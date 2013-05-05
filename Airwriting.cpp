@@ -14,11 +14,11 @@ using namespace std;
 //hide the local functions in an anon namespace
 namespace
 {
-	Particle particles(50,(Mat_<double>(9,9)<<
-		1.4,-0.3,-0.1,0,0,0,0,0,0,
+	Particle particles(100,(Mat_<double>(9,9)<<
+		1.5,-0.35,-0.15,0,0,0,0,0,0,
 		1,0,0,0,0,0,0,0,0,
 		0,1,0,0,0,0,0,0,0,
-		0,0,0,1.4,-0.3,-0.1,0,0,0,
+		0,0,0,1.5,-0.35,-0.15,0,0,0,
 		0,0,0,1,0,0,0,0,0,
 		0,0,0,0,1,0,0,0,0,
 		0,0,0,0,0,0,1,0,0,
@@ -124,7 +124,7 @@ int main(int ac, char** av)
 
 			particles.PredictParticle();
 
-			particles.MeasureParticle(curframe, trackObject);
+			particles.MeasureParticle(handimg, trackObject);
 			
 			//表现粒子，使用方框或什么东西。。。(在img上画图！
 			//当然作出轨迹更好啦。

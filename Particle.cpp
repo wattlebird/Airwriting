@@ -37,8 +37,10 @@ void Particle::InitParticle(const cv::Mat& handimg){
 
 
 	int min_index=FingertipPos(handcontour);
+	//std::vector<cv::Point>::iterator itr=std::min_element(handcontour.begin(),handcontour.end(),fingertip_compare);
+	//int min_index=itr-handcontour.begin();
 
-	int len=handcontour.size()+1;
+	int len=handcontour.size();
 	for (int i=-CONTOUR_POINTS/2;i!=CONTOUR_POINTS-CONTOUR_POINTS/2;i++){
 		templatePointSetx[i+CONTOUR_POINTS/2]=handcontour[(min_index+4*i+2*len)%len].x-handcontour[(min_index)%len].x;
 		templatePointSety[i+CONTOUR_POINTS/2]=handcontour[(min_index+4*i+2*len)%len].y-handcontour[(min_index)%len].y;
@@ -76,6 +78,12 @@ void Particle::InitParticle(const cv::Mat& handimg){
 	particleStates=std::vector<cv::Vec<double,9> >(particleNum,init_state);
 }
 
+//bool fingertip_compare(const cv::Point pt1,
+//	const cv::Point pt2){
+//		return pt1.y<pt2.y;
+//}
+
+
 
 bool contours_compare(const std::vector<cv::Point> obj1,
 	const std::vector<cv::Point> obj2){
@@ -91,7 +99,7 @@ void Particle::PredictParticle(){
 	int totalsum=cv::sum(nextround)[0];
 	if (particleNum-totalsum){
 		std::vector<int>::iterator next_itr=std::max_element(nextround.begin(),nextround.end());
-		(*next_itr)+=(particleNum-totalsum);//可能出现负值，坑
+		(*next_itr)+=(particleNum-totalsum);
 	}
 
 
@@ -101,8 +109,8 @@ void Particle::PredictParticle(){
 	for (int i=0;i!=particleNum;i++)
 		if(nextround[i])
 			for (int j=0;j!=nextround[i];j++){
-				cv::Vec<double,9> randomVec(randobj.gaussian(6),0,0,
-					randobj.gaussian(6),0,0,
+				cv::Vec<double,9> randomVec(randobj.gaussian(10),0,0,
+					randobj.gaussian(10),0,0,
 					randobj.gaussian(0.1),//弧度！
 					randobj.gaussian(0.01),
 					randobj.gaussian(0.01)
@@ -120,6 +128,7 @@ void Particle::PredictParticle(){
 //……实际上输入什么图像应该由更为上层的结构确定
 void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 	//这里假设输入RGB图像。
+	cv::Canny(img,img,50,150);
 	std::vector<cv::Vec<double, 2*CONTOUR_POINTS> > controlPoints(particleNum);
 	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
 
@@ -142,7 +151,7 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 		}else{
 			particleConfidence[i]=0;
 		}
-		std::cout<<particleConfidence[i]<<std::endl;
+		//std::cout<<particleConfidence[i]<<std::endl;
 		//用于调试
 		//cv::Mat imgshow=img.clone();
 		//for(int j=0;j!=CONTOUR_POINTS;j++){

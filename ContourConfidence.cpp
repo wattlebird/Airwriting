@@ -39,10 +39,7 @@ double ContConf(const std::vector<cv::Point>& corse_contour, const cv::Mat& img)
 			dest_itr[i]=cv::Point2d(dest_itr[i].y,-dest_itr[i].x);
 	}
 
-	cv::Mat gray_img;
-	cv::cvtColor(img,gray_img,CV_BGR2GRAY);
-	cv::blur(gray_img,gray_img,cv::Size(3,3));
-	cv::Canny(gray_img,gray_img,50,150);
+
 	
 #ifdef DEBUG_CONTOUR
 	cv::Mat imgshow=img.clone();
@@ -55,9 +52,9 @@ double ContConf(const std::vector<cv::Point>& corse_contour, const cv::Mat& img)
 	for (int i=0;i!=len;i++){
 		try{
 #ifdef DEBUG_CONTOUR
-			dis+=confcal_debug(imgshow,gray_img,corse_contour[i],normal[i]);
+			dis+=confcal_debug(imgshow,img,corse_contour[i],normal[i]);
 #else
-			dis+=confcal(gray_img, corse_contour[i], normal[i]);
+			dis+=confcal(img, corse_contour[i], normal[i]);
 #endif
 		}catch(std::exception& e){
 			if (e.what()=="points are out of pic's range"){
