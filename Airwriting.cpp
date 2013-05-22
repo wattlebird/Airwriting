@@ -28,6 +28,9 @@ namespace
 	Mat bkgnd;
 	Mat preframe;
 	bool trackObject = false;
+	bool airWriting = false;
+	double timer;
+	vector<vector<Point> > lines;
 	Point origin;
 	Mat SE=getStructuringElement(MORPH_ELLIPSE,Size(5,5));
 
@@ -50,6 +53,15 @@ namespace
 			}
 			Mat finger_step1=finger[0]|finger[1]|finger[2];
 			return finger_step1;
+	}
+
+	void Setup(void){
+		timer=(double)getTickCount();
+	}
+
+	bool Timervalid(void){
+		double t=(double)getTickCount();
+		return ((t-timer)/getTickFrequency())>2;
 	}
 
 }
@@ -89,6 +101,7 @@ int main(int ac, char** av)
 	bkgnd=curframe.clone();
 	preframe=bkgnd.clone();
 	Mat img;
+	vector<Point> pts;
 
     for (;;)
     {
@@ -109,34 +122,60 @@ int main(int ac, char** av)
 		//imshow("debug window 1",handimg);
 		//cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
 		//waitKey(0);
-		if(!trackObject && countNonZero(vali)<1500 && countNonZero(handimg)>16000){
-			
-			trackObject=true;//这个值什么时候才能被改变为false呢？
-			//cout<<"close operation"<<endl;
-			morphologyEx(handimg,handimg,MORPH_CLOSE,SE);
-			//imshow("debug window 1",handimg);
-			//waitKey(0);
-			particles.InitParticle(handimg);
-			//continue;
+
+		if (countNonZero(vali)<800 && countNonZero(handimg)>16000){
+			if(!trackObject){
+				trackObject=true;//这个值什么时候才能被改变为false呢？
+				airWriting=false;
+				morphologyEx(handimg,handimg,MORPH_CLOSE,SE);
+				particles.InitParticle(handimg);
+				Setup();
+				if(pts.size()>=2)
+					lines.push_back(pts);
+				pts.clear();
+			}else{
+				if(!airWriting){
+					if(Timervalid()){
+						airWriting=true;
+						Setup();
+					}
+				}else{
+					if(Timervalid()){
+						airWriting=false;
+						Setup();
+						if(pts.size()>=2)
+							lines.push_back(pts);
+						pts.clear();
+					}
+				}
+			}
 		}
 
 		if(trackObject){
-
 			particles.PredictParticle();
-
 			particles.MeasureParticle(handimg, trackObject);
-			
-			//表现粒子，使用方框或什么东西。。。(在img上画图！
-			//当然作出轨迹更好啦。
-			//表现均衡后的粒子，请用此式
-			circle(img,particles.MeasuredFingertip(),8,Scalar(0,0,255),2);
-			//表现每一个粒子，请用以下四行
-			//vector<Rect> positions=particles.EveryParticle(selection);
-			//for (int i=0;i!=positions.size();i++){
-			//	rectangle(img,positions[i],Scalar(0,255,255),2);
-			//}
+			if(!airWriting){
+				circle(img,particles.MeasuredFingertip(),8,Scalar(0,0,255),2);
+			}else if(!Timervalid()){
+				circle(img,particles.MeasuredFingertip(),8,Scalar(0,255,255),2);
+			}else{
+				pts.push_back(particles.MeasuredFingertip());
+				circle(img,particles.MeasuredFingertip(),8,Scalar(0,255,0),2);
+			}
 		}
 
+		if(pts.size()>=2){
+			for(int i=0;i!=pts.size()-1;i++){
+				line(img,pts[i],pts[i+1],Scalar(255,0,0),2);
+			}
+		}
+		if(!lines.empty()){
+			for (int i=0;i!=lines.size();i++){
+				for (int j=0;j!=lines[i].size()-1;j++){
+					line(img,lines[i][j],lines[i][j+1],Scalar(255,0,0),2);
+				}
+			}
+		}
 		imshow(window_name, img);
 		preframe=curframe.clone();
 
