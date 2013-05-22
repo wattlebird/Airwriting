@@ -109,8 +109,8 @@ void Particle::PredictParticle(){
 	for (int i=0;i!=particleNum;i++)
 		if(nextround[i])
 			for (int j=0;j!=nextround[i];j++){
-				cv::Vec<double,9> randomVec(randobj.gaussian(10),0,0,
-					randobj.gaussian(10),0,0,
+				cv::Vec<double,9> randomVec(randobj.gaussian(5),0,0,
+					randobj.gaussian(5),0,0,
 					randobj.gaussian(0.1),//弧度！
 					randobj.gaussian(0.01),
 					randobj.gaussian(0.01)
@@ -126,7 +126,7 @@ void Particle::PredictParticle(){
 
 //输入的img应该是RGB图像。
 //……实际上输入什么图像应该由更为上层的结构确定
-void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
+bool Particle::MeasureParticle(const cv::Mat& img){
 	//这里假设输入RGB图像。
 	cv::Canny(img,img,50,150);
 	std::vector<cv::Vec<double, 2*CONTOUR_POINTS> > controlPoints(particleNum);
@@ -160,8 +160,7 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 		//cv::imshow("debug window 1",imgshow);
 		//cv::waitKey(0);
 	}
-
-	trackObject=false;
+	
 	int flag=0;
 	for(int i=0;i!=particleNum;i++){
 		if(particleConfidence[i]<0.3){
@@ -169,13 +168,11 @@ void Particle::MeasureParticle(const cv::Mat& img, bool& trackObject){
 			flag++;
 		}
 	}
-	if (flag!=particleNum)
-		trackObject=true;
-	else 
-		std::cout<<"failure because of confidence"<<std::endl;
-
 	cv::normalize(particleConfidence,particleConfidence,1.0,0.0,cv::NORM_L1);
-			
+	if (flag!=particleNum)
+		return true;
+	else 
+		return false;
 }
 
 

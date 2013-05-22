@@ -29,6 +29,8 @@ namespace
 	Mat preframe;
 	bool trackObject = false;
 	bool airWriting = false;
+	bool still=false;
+	char state='a';
 	double timer;
 	vector<vector<Point> > lines;
 	Point origin;
@@ -65,6 +67,8 @@ namespace
 	}
 
 }
+
+void imgshow(Mat& , const vector<vector<Point> >&, const string&);
 
 int main(int ac, char** av)
 {
@@ -103,80 +107,69 @@ int main(int ac, char** av)
 	Mat img;
 	vector<Point> pts;
 
-    for (;;)
-    {
+    while(1){
 		capture >> curframe;
 		if(curframe.empty())
 			continue;
 		curframe.copyTo(img);
 
-		//imshow("debug window 1",bkgnd);
-		//imshow("debug window 2",curframe);
-		//imshow("debug window 3",preframe);
-		//waitKey(0);
-		//帧差开始变小，说明手开始固定；
-		//与背景相减即看看是否有手势。
-		//这一切标志着可以开始初始化。
 		Mat vali=framediff(curframe,preframe);
 		Mat handimg=framediff(curframe,bkgnd);
-		//imshow("debug window 1",handimg);
-		//cout<<"sub between fram "<<countNonZero(vali)<<endl<<"sub of bkgnd "<<countNonZero(handimg)<<endl<<endl;
-		//waitKey(0);
+		if (countNonZero(vali)<800 && countNonZero(handimg)>16000)
+			still=true;
+		else{
+			Setup();
+			still=false;
+		}
 
-		if (countNonZero(vali)<800 && countNonZero(handimg)>16000){
-			if(!trackObject){
-				trackObject=true;//这个值什么时候才能被改变为false呢？
-				airWriting=false;
+		switch(state){
+		case 'a'://不跟踪
+			if(still){
+				state='b';
 				morphologyEx(handimg,handimg,MORPH_CLOSE,SE);
 				particles.InitParticle(handimg);
-				Setup();
-				if(pts.size()>=2)
-					lines.push_back(pts);
-				pts.clear();
-			}else{
-				if(!airWriting){
-					if(Timervalid()){
-						airWriting=true;
-						Setup();
-					}
-				}else{
-					if(Timervalid()){
-						airWriting=false;
-						Setup();
-						if(pts.size()>=2)
-							lines.push_back(pts);
-						pts.clear();
-					}
-				}
 			}
-		}
-
-		if(trackObject){
+			imgshow(img,lines,window_name);
+			break;
+		case 'b'://跟踪，不书写
 			particles.PredictParticle();
-			particles.MeasureParticle(handimg, trackObject);
-			if(!airWriting){
-				circle(img,particles.MeasuredFingertip(),8,Scalar(0,0,255),2);
-			}else if(!Timervalid()){
-				circle(img,particles.MeasuredFingertip(),8,Scalar(0,255,255),2);
-			}else{
-				pts.push_back(particles.MeasuredFingertip());
-				circle(img,particles.MeasuredFingertip(),8,Scalar(0,255,0),2);
+			if(!particles.MeasureParticle(handimg)){
+				state='a';
+				imgshow(img,lines,window_name);
+				break;
 			}
-		}
-
-		if(pts.size()>=2){
-			for(int i=0;i!=pts.size()-1;i++){
-				line(img,pts[i],pts[i+1],Scalar(255,0,0),2);
+			if(still && Timervalid()){
+				state='c';
+				Setup();
 			}
-		}
-		if(!lines.empty()){
-			for (int i=0;i!=lines.size();i++){
-				for (int j=0;j!=lines[i].size()-1;j++){
-					line(img,lines[i][j],lines[i][j+1],Scalar(255,0,0),2);
+			circle(img,particles.MeasuredFingertip(),8,Scalar(0,0,255),2);
+			imgshow(img,lines,window_name);
+			break;
+		case 'c'://跟踪，书写
+			particles.PredictParticle();
+			if(!particles.MeasureParticle(handimg)){
+				state='a';
+				lines.push_back(pts);
+				pts.clear();
+				imgshow(img,lines,window_name);
+				break;
+			}
+			if(still && Timervalid()){
+				state='b';
+				Setup();
+			}
+			Point temp=particles.MeasuredFingertip();
+			pts.push_back(temp);
+			circle(img,temp,8,Scalar(0,255,0),2);
+			if(pts.size()>=2){
+				for(int i=0;i!=pts.size()-1;i++){
+					line(img,pts[i],pts[i+1],Scalar(255,0,0),2);
 				}
 			}
+			imgshow(img,lines,window_name);
+			break;
 		}
-		imshow(window_name, img);
+
 		preframe=curframe.clone();
 
 #ifdef DEBUG_GLOBAL
@@ -186,6 +179,9 @@ int main(int ac, char** av)
 #endif
 		switch (key)
 		{
+			case 'c':
+				lines.clear();
+				break;
 			case 'q':
 			case 'Q':
 			case 27: //escape key
@@ -196,4 +192,15 @@ int main(int ac, char** av)
 	}
 
     return 0;
+}
+
+void imgshow(Mat& img, const vector<vector<Point> >& lines, const string& window){
+	if(!lines.empty()){
+		for (int i=0;i!=lines.size();i++){
+			for (int j=0;j!=lines[i].size()-1;j++){
+				line(img,lines[i][j],lines[i][j+1],Scalar(255,0,0),2);
+			}
+		}
+	}
+	imshow(window, img);
 }

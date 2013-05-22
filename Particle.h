@@ -35,7 +35,8 @@ public:
 	//计算点上的法线；
 	//根据法线上的梯度计算置信度。
 	//归一化置信度。
-	void MeasureParticle(const cv::Mat&, bool&);
+	//返回布尔值，代表粒子跟踪成功（从置信度上看）
+	bool MeasureParticle(const cv::Mat&);
 	cv::Point MeasuredFingertip() const;
 
 private:
