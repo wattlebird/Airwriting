@@ -47,13 +47,14 @@ void Particle::InitParticle(const cv::Mat& handimg){
 		templateControlPoint[i+CONTOUR_POINTS/2]=templatePointSetx[i+CONTOUR_POINTS/2];
 		templateControlPoint[i+CONTOUR_POINTS/2+CONTOUR_POINTS]=templatePointSety[i+CONTOUR_POINTS/2];
 #ifdef DEBUG_INIT
-		cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
+		//cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
 #endif
 	}
 #ifdef DEBUG_INIT
-	cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
-	cv::imshow("debug window 1",imgshow);
-	cv::waitKey(0);
+	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
+	//cv::imshow("debug window 1",imgshow);
+	//cv::waitKey(0);
+	cv::imwrite("handcontour.jpg",imgshow);
 #endif
 	
 	if(!W.empty())

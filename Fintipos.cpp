@@ -4,11 +4,13 @@
 #include <iostream>
 #include "opencv2\highgui\highgui.hpp"
 #include <stdexcept>
+#include <fstream>
 
 //#define DEBUG_FIN
+//#define CSV_OUTPUT
 
 bool pangle(const double& angle){
-	return (angle>-0.2 && angle<0.75);
+	return (angle>-0.2);
 }
 
 bool nangle(const double& angle){
@@ -21,17 +23,30 @@ bool fine_angle_set_compare(const std::vector<double>& a, const std::vector<doub
 
 int FingertipPos(const std::vector<cv::Point>& handcontour){
 	int len=handcontour.size();
-	std::vector<int> hull_index;
+	//std::vector<int> hull_index;
 	std::vector<double> angle;
-	cv::convexHull(handcontour,hull_index);
+	//cv::convexHull(handcontour,hull_index);
 
-	for (int i=0;i!=hull_index.size();i++){
-		cv::Point2d pt1=handcontour[(hull_index[i]+15)%len]-handcontour[(hull_index[i])];
-		cv::Point2d pt2=handcontour[(hull_index[i]-15+len)%len]-handcontour[(hull_index[i])];
-		pt1*=(1/cv::norm(pt1));
-		pt2*=(1/cv::norm(pt2));
-		angle.push_back(pt1.dot(pt2));
-		//std::cout<<angle[i]<<std::endl;
+#ifdef CSV_OUTPUT
+	std::ofstream outf("out.csv");
+	outf<<"index,angle,x,y"<<std::endl;
+#endif
+
+	for (int i=0;i!=len;i++){
+		if(handcontour[i].y<450){
+			cv::Point2d pt1=handcontour[(i+15)%len]-handcontour[i];
+			cv::Point2d pt2=handcontour[(i-15+len)%len]-handcontour[i];
+			pt1*=(1/cv::norm(pt1));
+			pt2*=(1/cv::norm(pt2));
+			angle.push_back(pt1.dot(pt2));
+			//std::cout<<angle[i]<<std::endl;
+		}else{
+			angle.push_back(-1);
+		}
+#ifdef CSV_OUTPUT
+		outf<<i<<','<<angle[i]<<','<<handcontour[i].x<<','
+			<<handcontour[i].y<<std::endl;
+#endif
 	}
 	
 	typedef std::vector<double> Angles;
@@ -48,6 +63,8 @@ int FingertipPos(const std::vector<cv::Point>& handcontour){
 	if (fine_angle_set.empty()){
 		throw std::invalid_argument("no fingertip feature");
 	}else{
+		//for (int i=0;i!=fine_angle_set.size();i++){
+			
 		std::vector<Angles>::const_iterator itr=std::max_element(fine_angle_set.begin(),fine_angle_set.end(),fine_angle_set_compare);
 		pt_itr=std::max_element((*itr).begin(),(*itr).end());
 	}
@@ -67,5 +84,5 @@ int FingertipPos(const std::vector<cv::Point>& handcontour){
 	cv::waitKey(0);
 #endif
 
-	return hull_index[index];
+	return index;
 }
