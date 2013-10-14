@@ -36,7 +36,8 @@ void Particle::InitParticle(const cv::Mat& handimg){
 #endif
 
 
-	int min_index=FingertipPos(handcontour);
+	int min_index=FingertipPos(handcontour,handimg);
+
 	//std::vector<cv::Point>::iterator itr=std::min_element(handcontour.begin(),handcontour.end(),fingertip_compare);
 	//int min_index=itr-handcontour.begin();
 
@@ -47,14 +48,14 @@ void Particle::InitParticle(const cv::Mat& handimg){
 		templateControlPoint[i+CONTOUR_POINTS/2]=templatePointSetx[i+CONTOUR_POINTS/2];
 		templateControlPoint[i+CONTOUR_POINTS/2+CONTOUR_POINTS]=templatePointSety[i+CONTOUR_POINTS/2];
 #ifdef DEBUG_INIT
-		//cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
+		cv::circle(imgshow,handcontour[(min_index+10*i+2*len)%len],8,cv::Scalar(192),2);
 #endif
 	}
 #ifdef DEBUG_INIT
-	//cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
-	//cv::imshow("debug window 1",imgshow);
-	//cv::waitKey(0);
-	cv::imwrite("handcontour.jpg",imgshow);
+	cv::namedWindow("debug window 1", CV_WINDOW_AUTOSIZE);
+	cv::imshow("debug window 1",imgshow);
+	cv::waitKey(0);
+	//cv::imwrite("handcontour.jpg",imgshow);
 #endif
 	
 	if(!W.empty())
@@ -179,7 +180,7 @@ bool Particle::MeasureParticle(const cv::Mat& img){
 
 	
 bool isValid(const cv::Vec<double,9>& state, const std::vector<cv::Point>& actualPoints){
-	if (state[0]>=0 && state[0]<640 && state[1]>=0 && state[1]<480 && state[3]>0 && state[4]>0){
+	if (state[0]>=0 && state[0]<640 && state[3]>=0 && state[3]<480 && state[7]>0 && state[8]>0){
 		std::vector<cv::Point>::const_iterator itr=actualPoints.begin();
 		while(itr!=actualPoints.end() && (*itr).x>=0 && (*itr).x<640 && (*itr).y>=0 && (*itr).y<480)
 			itr++;

@@ -15,10 +15,10 @@ using namespace std;
 namespace
 {
 	Particle particles(100,(Mat_<double>(9,9)<<
-		1.5,-0.35,-0.15,0,0,0,0,0,0,
+		1.4,-0.3,-0.1,0,0,0,0,0,0,
 		1,0,0,0,0,0,0,0,0,
 		0,1,0,0,0,0,0,0,0,
-		0,0,0,1.5,-0.35,-0.15,0,0,0,
+		0,0,0,1.4,-0.3,-0.1,0,0,0,
 		0,0,0,1,0,0,0,0,0,
 		0,0,0,0,1,0,0,0,0,
 		0,0,0,0,0,0,1,0,0,
@@ -51,7 +51,7 @@ namespace
 			split(preframe,prechannel);
 			for (int i=0;i!=3;i++){
 				absdiff(curchannel[i],prechannel[i],finger[i]);
-				threshold(finger[i],finger[i],40,255,THRESH_BINARY);
+				threshold(finger[i],finger[i],30,255,THRESH_BINARY);
 			}
 			Mat finger_step1=finger[0]|finger[1]|finger[2];
 			return finger_step1;
@@ -63,7 +63,7 @@ namespace
 
 	bool Timervalid(void){
 		double t=(double)getTickCount();
-		return ((t-timer)/getTickFrequency())>2;
+		return ((t-timer)/getTickFrequency())>1;
 	}
 
 }
@@ -106,6 +106,8 @@ int main(int ac, char** av)
 	preframe=bkgnd.clone();
 	Mat img;
 	vector<Point> pts;
+	VideoWriter vm("Dango.avi",-1,15,cv::Size(640,480));
+
 
     while(1){
 		capture >> curframe;
@@ -115,7 +117,7 @@ int main(int ac, char** av)
 
 		Mat vali=framediff(curframe,preframe);
 		Mat handimg=framediff(curframe,bkgnd);
-		if (countNonZero(vali)<800 && countNonZero(handimg)>16000)
+		if (countNonZero(vali)<800 && countNonZero(handimg)>8000)
 			still=true;
 		else{
 			Setup();
@@ -157,6 +159,10 @@ int main(int ac, char** av)
 			if(still && Timervalid()){
 				state='b';
 				Setup();
+				lines.push_back(pts);
+				pts.clear();
+				imgshow(img,lines,window_name);
+				break;
 			}
 			Point temp=particles.MeasuredFingertip();
 			pts.push_back(temp);
@@ -171,6 +177,7 @@ int main(int ac, char** av)
 		}
 
 		preframe=curframe.clone();
+		vm<<img;
 
 #ifdef DEBUG_GLOBAL
 		char key = (char) waitKey(0); 
@@ -186,6 +193,7 @@ int main(int ac, char** av)
 			case 'Q':
 			case 27: //escape key
 				return 0;
+				vm.release();
 			default:
 				break;
 		}
